@@ -158,6 +158,7 @@ task release(type: Copy, group: 'build') {
 //****************************************************************************/
 dependencies {
     api "org.opensearch:opensearch:${opensearch_version}"
+    implementation group: 'org.opensearch', name:'opensearch-ml-client', version: "2.3.0.0-SNAPSHOT"
     compileOnly "org.opensearch.plugin:opensearch-scripting-painless-spi:${versions.opensearch}"
     api group: 'com.google.guava', name: 'failureaccess', version:'1.0.1'
     api group: 'com.google.guava', name: 'guava', version:'30.0-jre'
