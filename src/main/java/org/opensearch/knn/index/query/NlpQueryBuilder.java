@@ -136,7 +136,6 @@ public class NlpQueryBuilder extends AbstractQueryBuilder<NlpQueryBuilder> {
                 DeepModelResultFilter filter = new DeepModelResultFilter(false, true, targetResponse, targetResponsePositions);
                 MLInputDataset inputDataset = new TextDocsInputDataSet(Arrays.asList(doc), filter);
                 MLInput mlInput = new MLInput(FunctionName.CUSTOM, null, inputDataset, MLModelTaskType.TEXT_EMBEDDING);
-                mlClient.predict("", null);
                 mlClient.predict(this.modelId, mlInput, ActionListener.wrap(mlOutput -> {
                     MLBatchModelTensorOutput mlBatchModelTensorOutput = (MLBatchModelTensorOutput) mlOutput;
                     MLModelTensorOutput mlModelOutputs = mlBatchModelTensorOutput.getMlModelOutputs().get(0);
