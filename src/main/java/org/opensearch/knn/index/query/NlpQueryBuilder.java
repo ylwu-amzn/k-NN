@@ -17,14 +17,14 @@ import org.opensearch.index.query.QueryShardContext;
 import org.opensearch.knn.index.util.KNNEngine;
 import org.opensearch.ml.client.MachineLearningClient;
 import org.opensearch.ml.common.FunctionName;
-import org.opensearch.ml.common.dataset.DeepModelResultFilter;
 import org.opensearch.ml.common.dataset.MLInputDataset;
 import org.opensearch.ml.common.dataset.TextDocsInputDataSet;
 import org.opensearch.ml.common.input.MLInput;
 import org.opensearch.ml.common.model.MLModelTaskType;
-import org.opensearch.ml.common.output.custom_model.MLBatchModelTensorOutput;
-import org.opensearch.ml.common.output.custom_model.MLModelTensor;
-import org.opensearch.ml.common.output.custom_model.MLModelTensorOutput;
+import org.opensearch.ml.common.output.model.ModelResultFilter;
+import org.opensearch.ml.common.output.model.ModelTensor;
+import org.opensearch.ml.common.output.model.ModelTensorOutput;
+import org.opensearch.ml.common.output.model.ModelTensors;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -131,16 +131,24 @@ public class NlpQueryBuilder extends AbstractQueryBuilder<NlpQueryBuilder> {
         if (this.vector == null) {
             SetOnce<float[]> supplier = new SetOnce<>();
             queryRewriteContext.registerAsyncAction((client, listener) -> {
+                // Model may output multiple results. "targetResponse" is to filter which results you want to return,
+                // For example, model output "input_ids" and "sentence_embedding". We only need "sentence_embedding".
+                // Then we can just set "sentence_embedding" in targetResponse.
+                // If targetResponse is null, will return all outputs.
                 List<String> targetResponse = Arrays.asList("sentence_embedding");
+                // Some model's output doesn't have a key or name. User can specify the result position to get target output.
+                // For example the model has three outputs and we may only need the second one, then just add 1 to
+                // targetResponsePosition.
+                // If targetResponsePositions is null, will return all output.
                 List<Integer> targetResponsePositions = null;
-                DeepModelResultFilter filter = new DeepModelResultFilter(false, true, targetResponse, targetResponsePositions);
+                ModelResultFilter filter = new ModelResultFilter(false, true, targetResponse, targetResponsePositions);
                 MLInputDataset inputDataset = new TextDocsInputDataSet(Arrays.asList(doc), filter);
                 MLInput mlInput = new MLInput(FunctionName.CUSTOM, null, inputDataset, MLModelTaskType.TEXT_EMBEDDING);
                 mlClient.predict(this.modelId, mlInput, ActionListener.wrap(mlOutput -> {
-                    MLBatchModelTensorOutput mlBatchModelTensorOutput = (MLBatchModelTensorOutput) mlOutput;
-                    MLModelTensorOutput mlModelOutputs = mlBatchModelTensorOutput.getMlModelOutputs().get(0);
+                    ModelTensorOutput modelTensorOutput = (ModelTensorOutput) mlOutput;
+                    ModelTensors modelTensors = modelTensorOutput.getMlModelOutputs().get(0);
                     float[] vector = null;
-                    for (MLModelTensor out : mlModelOutputs.getMlModelTensors()) {
+                    for (ModelTensor out : modelTensors.getMlModelTensors()) {
                         if ("sentence_embedding".equals(out.getName())) {
                             vector = new float[out.getData().length];
                             for (int i = 0 ; i<out.getData().length;i++) {
