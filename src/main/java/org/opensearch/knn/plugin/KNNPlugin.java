@@ -18,6 +18,7 @@ import org.opensearch.knn.index.mapper.KNNVectorFieldMapper;
 import org.opensearch.knn.index.query.KNNWeight;
 import org.opensearch.knn.index.codec.KNNCodecService;
 import org.opensearch.knn.index.memory.NativeMemoryLoadStrategy;
+import org.opensearch.knn.index.query.NlpQueryBuilder;
 import org.opensearch.knn.indices.ModelGraveyard;
 import org.opensearch.knn.indices.ModelCache;
 import org.opensearch.knn.indices.ModelDao;
@@ -75,6 +76,7 @@ import org.opensearch.knn.plugin.transport.UpdateModelGraveyardAction;
 import org.opensearch.knn.plugin.transport.UpdateModelGraveyardTransportAction;
 import org.opensearch.knn.training.TrainingJobRunner;
 import org.opensearch.knn.training.VectorReader;
+import org.opensearch.ml.client.MachineLearningNodeClient;
 import org.opensearch.plugins.ActionPlugin;
 import org.opensearch.plugins.EnginePlugin;
 import org.opensearch.plugins.ExtensiblePlugin;
@@ -143,6 +145,7 @@ public class KNNPlugin extends Plugin implements MapperPlugin, SearchPlugin, Act
 
     private KNNStats knnStats;
     private ClusterService clusterService;
+    private MachineLearningNodeClient mlClient;
 
     @Override
     public Map<String, Mapper.TypeParser> getMappers() {
@@ -154,7 +157,10 @@ public class KNNPlugin extends Plugin implements MapperPlugin, SearchPlugin, Act
 
     @Override
     public List<QuerySpec<?>> getQueries() {
-        return singletonList(new QuerySpec<>(KNNQueryBuilder.NAME, KNNQueryBuilder::new, KNNQueryBuilder::fromXContent));
+        List<QuerySpec<?>> quries = new ArrayList<>();
+        quries.add(new QuerySpec<>(KNNQueryBuilder.NAME, KNNQueryBuilder::new, KNNQueryBuilder::fromXContent));
+        quries.add(new QuerySpec<>(NlpQueryBuilder.NAME, NlpQueryBuilder::new, NlpQueryBuilder::fromXContent));
+        return quries;
     }
 
     @Override
@@ -187,6 +193,8 @@ public class KNNPlugin extends Plugin implements MapperPlugin, SearchPlugin, Act
         KNNWeight.initialize(ModelDao.OpenSearchKNNModelDao.getInstance());
         TrainingModelRequest.initialize(ModelDao.OpenSearchKNNModelDao.getInstance(), clusterService);
         knnStats = new KNNStats(KNNStatsConfig.KNN_STATS);
+        mlClient = new MachineLearningNodeClient(client);
+        NlpQueryBuilder.mlClient = mlClient;
         return ImmutableList.of(knnStats);
     }
 
